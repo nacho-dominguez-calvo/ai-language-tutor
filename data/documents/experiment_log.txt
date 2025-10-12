@@ -1,0 +1,7 @@
+Experiment Log – Series 17B
+----------------------------
+Objective: Measure temperature drift in new sensor model
+Sensor ID: S17B-09
+Ambient temperature: 22°C
+Observed drift after 48h: +0.04°C
+Conclusion: Within acceptable tolerance

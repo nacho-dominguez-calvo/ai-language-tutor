@@ -1,0 +1,7 @@
+Title: Modeling Wind Flow Around Urban Microturbines
+-----------------------------------------------------
+Abstract:
+This paper introduces a stochastic simulation framework for microturbine placement.
+Findings show that optimal performance occurs at 8.4 m/s average wind speed.
+Authors: N. Domínguez, A. Patel
+Publication status: Under review (Energy Systems Journal)

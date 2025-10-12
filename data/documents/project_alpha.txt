@@ -1,0 +1,7 @@
+Project Alpha Overview
+-----------------------
+Project Alpha is an internal R&D effort to design a small-scale hydrogen fuel cell prototype.
+Lead engineer: Laura Méndez
+Target efficiency: 72%
+Testing site: Chamber C4, Madrid facility
+First prototype assembled: June 2024

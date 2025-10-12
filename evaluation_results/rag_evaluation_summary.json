@@ -1,0 +1,13 @@
+{
+  "average_metrics": {
+    "Context Precision": 0.333,
+    "Context Recall": 1.0,
+    "Faithfulness": 0.33999999999999997,
+    "Answer Relevance": 1.0,
+    "Correctness": 1.0,
+    "Length Compliance": 1.0
+  },
+  "num_test_cases": 5,
+  "num_documents": 5,
+  "timestamp": "2025-10-13T00:39:41.469676"
+}

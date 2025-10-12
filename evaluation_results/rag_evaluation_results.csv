@@ -1,0 +1,6 @@
+question,answer,expected_answer,sources,num_sources,context_precision,context_recall,faithfulness,answer_relevance,correctness,length_compliance
+What is the optimal wind speed for microturbine performance?,The optimal wind speed for microturbine performance is 8.4 m/s.,8.4 m/s average wind speed,"experiment_log.txt, research_paper.txt, project_alpha.txt",3,0.333,1.0,0.0,1.0,1.0,1.0
+Who is the lead engineer for Project Alpha?,Laura Méndez is the lead engineer for Project Alpha.,Laura Méndez,"client_records.txt, research_paper.txt, project_alpha.txt",3,0.333,1.0,1.0,1.0,1.0,1.0
+What is the primary contact for TechNova Industries?,The primary contact for TechNova Industries is Carlos Rivera.,Carlos Rivera,"internal_policy.txt, project_alpha.txt, client_records.txt",3,0.333,1.0,0.0,1.0,1.0,1.0
+What happens if employees violate data access policy?,Violations result in immediate suspension pending review.,Immediate suspension pending review,"experiment_log.txt, internal_policy.txt, client_records.txt",3,0.333,1.0,0.7,1.0,1.0,1.0
+What was the temperature drift observed in sensor S17B-09?,The temperature drift observed in sensor S17B-09 was +0.04°C.,+0.04°C after 48 hours,"experiment_log.txt, research_paper.txt, project_alpha.txt",3,0.333,1.0,0.0,1.0,1.0,1.0
