@@ -31,7 +31,7 @@ Unlike generic chatbots, this system:
 - Learns your weak spots over time
 
 ## 🏗️ Architecture
-
+```text
 conversational-rag/
 ├── app/
 │ ├── llm_client.py # OpenAI API wrapper
@@ -47,7 +47,7 @@ conversational-rag/
 │ └── test_mistake_memory.py
 └── scripts/
 └── debug_analyzer.py # CLI testing utility
-
+```
 
 ### Tech Stack
 
