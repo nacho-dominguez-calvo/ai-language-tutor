@@ -1,6 +1,0 @@
-Internal Policy: Data Access
------------------------------
-1. Only authorized employees may access Tier 2 and Tier 3 data.
-2. Tier 3 includes customer transaction logs and system backups.
-3. Violations result in immediate suspension pending review.
-Effective date: January 2025

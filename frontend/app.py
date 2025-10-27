@@ -1,75 +1,193 @@
+"""
+AI Language Tutor - Clean Streamlit UI
+"""
+
 import streamlit as st
-import os
 import sys
-project_root = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
-sys.path.insert(0, project_root)
-from app.rag_chain import ask_with_context
-import tempfile
+import os
+from dotenv import load_dotenv
 
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-# -------------------------------------------------------------
-# CONFIGURATION
-# -------------------------------------------------------------
-st.set_page_config(page_title="🧠 MVP (Week 1) - Simple RAG with Memory", layout="centered")
+from app.llm_client import llm
+from app.conversation.conversation_analyzer import ConversationAnalyzer
+from app.memory.mistake_memory import MistakeMemory
+from app.memory.short_term_memory import ShortTermMemory
 
-st.title("🧠 MVP (Week 1) - Simple RAG, Simple Memory")
-st.markdown("**Author:** Nacho Domínguez")
+load_dotenv()
 
-# -------------------------------------------------------------
-# STATE MANAGEMENT
-# -------------------------------------------------------------
-if "chat_history" not in st.session_state:
-    st.session_state["chat_history"] = []
-if "docs" not in st.session_state:
-    st.session_state["docs"] = []
-
-# -------------------------------------------------------------
-# FILE UPLOAD SECTION
-# -------------------------------------------------------------
-st.subheader("📄 Upload up to 5 documents")
-
-uploaded_files = st.file_uploader(
-    "Drag and drop or select files",
-    accept_multiple_files=True,
-    type=["txt", "pdf", "md"],
+st.set_page_config(
+    page_title="AI Language Tutor",
+    page_icon="🎓",
+    layout="centered"
 )
 
-if uploaded_files:
-    st.session_state["docs"] = uploaded_files[:5]
-    st.success(f"{len(st.session_state['docs'])} document(s) loaded in memory")
+@st.cache_resource
+def init_components():
+    return ConversationAnalyzer(), MistakeMemory()
 
-# -------------------------------------------------------------
-# CHATBOT SECTION
-# -------------------------------------------------------------
-st.subheader("💬 Chat with your documents")
+analyzer, mistake_memory = init_components()
 
-user_input = st.text_input("Type your question here:")
 
-if st.button("Ask") and user_input:
-    try:
-        with st.spinner("Thinking..."):
-            answer, sources = ask_with_context(user_input)
-        st.session_state["chat_history"].append(("user", user_input))
-        st.session_state["chat_history"].append(("assistant", answer))
-
-        # Display the conversation
-        for role, message in st.session_state["chat_history"]:
-            if role == "user":
-                st.markdown(f"**🧍 You:** {message}")
+def login_screen():
+    st.title("🎓 AI Language Tutor")
+    
+    with st.form("login"):
+        st.text_input("Username", key="user", placeholder="example")
+        st.text_input("Password", key="pass", type="password", placeholder="example")
+        
+        if st.form_submit_button("Login", type="primary"):
+            if st.session_state.user == "example" and st.session_state["pass"] == "example":
+                st.session_state.logged_in = True
+                st.rerun()
             else:
-                st.markdown(f"**🤖 Assistant:** {message}")
+                st.error("Invalid credentials")
 
-        # Display sources
-        if sources:
-            st.markdown("**Sources used:**")
-            for s in sources:
-                st.code(s)
 
+def chat_interface():
+    with st.sidebar:
+        st.header("Language Tutor")
+        st.write(f"User: {st.session_state.username}")
+        
+        col1, col2 = st.columns(2)
+        col1.metric("Messages", len(st.session_state.messages))
+        col2.metric("Mistakes", mistake_memory.count_mistakes())
+        
+        st.button("Clear Chat", on_click=clear_chat, use_container_width=True)
+        st.button("Analyze Session", on_click=toggle_analysis, use_container_width=True)
+        st.button("View Mistakes", on_click=toggle_mistakes, use_container_width=True)
+        st.button("Logout", on_click=logout, use_container_width=True)
+    
+    st.header("Practice English")
+    
+    for msg in st.session_state.messages:
+        with st.chat_message(msg["role"]):
+            st.write(msg["content"])
+    
+    if st.session_state.get('show_analysis'):
+        with st.expander("Session Analysis", expanded=True):
+            analyze_session()
+    
+    if st.session_state.get('show_mistakes'):
+        with st.expander("Your Mistakes", expanded=True):
+            view_mistakes()
+    
+    if prompt := st.chat_input("Your message"):
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        st.session_state.stm.add_message("user", prompt)
+        
+        with st.spinner("Thinking..."):
+            response = get_response(prompt)
+        
+        st.session_state.messages.append({"role": "assistant", "content": response})
+        st.session_state.stm.add_message("assistant", response)
+        st.rerun()
+
+
+def get_response(user_input):
+    history = st.session_state.stm.get_messages(last_n=6)
+    history_text = "\n".join([f"{m['role']}: {m['content']}" for m in history])
+    
+    prompt = f"""You're a friendly English tutor. Correct errors gently.
+
+Recent chat:
+{history_text}
+
+Student: {user_input}
+
+If error: "Almost! Try: [correct]"
+If correct: "Good!" and continue
+Keep short (2-3 sentences)
+
+Response:"""
+    
+    try:
+        return llm.invoke(prompt).content
     except Exception as e:
-        st.error(f"Error: {e}")
+        return f"Error: {str(e)}"
 
-# -------------------------------------------------------------
-# FOOTER
-# -------------------------------------------------------------
-st.divider()
-st.caption("This is a minimal MVP to test RAG + LangChain integration.")
+
+def analyze_session():
+    messages = st.session_state.stm.get_messages()
+    if len(messages) < 2:
+        st.warning("Need more messages to analyze")
+        return
+    
+    with st.spinner("Analyzing..."):
+        mistakes = analyzer.analyze_conversation(messages)
+    
+    if mistakes:
+        mistake_memory.store_mistakes_batch(mistakes)
+        st.success(f"Found {len(mistakes)} mistakes")
+        
+        for i, m in enumerate(mistakes, 1):
+            st.subheader(f"{i}. {m.get('error_type', '')}")
+            col1, col2 = st.columns(2)
+            col1.write("**Your answer:**")
+            col1.code(m.get('student_input', ''))
+            col2.write("**Correct:**")
+            col2.code(m.get('corrected_answer', ''))
+            st.info(m.get('explanation', ''))
+    else:
+        st.success("Perfect! No mistakes found")
+
+
+def view_mistakes():
+    mistakes = mistake_memory.get_all_mistakes(limit=10)
+    
+    if not mistakes:
+        st.info("No mistakes recorded yet")
+        return
+    
+    for i, m in enumerate(mistakes, 1):
+        st.subheader(f"{i}. {m.get('error_type', '')}")
+        col1, col2 = st.columns(2)
+        col1.write("**Your answer:**")
+        col1.code(m.get('student_input', ''))
+        col2.write("**Correct:**")
+        col2.code(m.get('corrected_answer', ''))
+        st.info(m.get('explanation', ''))
+
+
+def clear_chat():
+    st.session_state.messages = []
+    st.session_state.stm.clear()
+
+
+def toggle_analysis():
+    st.session_state.show_analysis = not st.session_state.get('show_analysis', False)
+
+
+def toggle_mistakes():
+    st.session_state.show_mistakes = not st.session_state.get('show_mistakes', False)
+
+
+def logout():
+    st.session_state.clear()
+
+
+def init_session_state():
+    defaults = {
+        'logged_in': False,
+        'username': 'example',
+        'messages': [],
+        'stm': ShortTermMemory(),
+        'show_analysis': False,
+        'show_mistakes': False
+    }
+    for key, val in defaults.items():
+        if key not in st.session_state:
+            st.session_state[key] = val
+
+
+def main():
+    init_session_state()
+    
+    if not st.session_state.logged_in:
+        login_screen()
+    else:
+        chat_interface()
+
+
+if __name__ == "__main__":
+    main()
