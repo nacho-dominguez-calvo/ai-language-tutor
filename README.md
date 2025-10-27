@@ -48,7 +48,6 @@ conversational-rag/
 └── scripts/
 └── debug_analyzer.py # CLI testing utility
 
-text
 
 ### Tech Stack
 
@@ -70,7 +69,7 @@ text
 ### Installation
 
 Clone the repository
-git clone https://github.com/yourusername/conversational-rag.git
+git clone https://github.com/yourusername/ai-language-tutor.git
 cd conversational-rag
 
 Create virtual environment
