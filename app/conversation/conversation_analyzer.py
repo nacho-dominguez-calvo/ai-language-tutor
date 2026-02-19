@@ -4,6 +4,7 @@ Uses OpenAI Structured Outputs for 100% reliable JSON.
 """
 
 import json
+import re
 from datetime import datetime
 from typing import List, Dict, Optional
 from pydantic import BaseModel, Field
@@ -71,32 +72,42 @@ class ConversationAnalyzer:
         try:
             # Build prompt
             prompt = self._build_prompt(user_messages)
-            
-            # Use structured output with Pydantic
-            structured_llm = self.llm.with_structured_output(MistakesResponse)
-            
-            # Get response
-            response = structured_llm.invoke(prompt)
-            
-            # Convert to dict format
+
+            parsed_mistakes = []
+            if hasattr(self.llm, "with_structured_output"):
+                try:
+                    structured_llm = self.llm.with_structured_output(MistakesResponse)
+                    response = structured_llm.invoke(prompt)
+                    parsed_mistakes = [mistake.model_dump() for mistake in response.mistakes]
+                except Exception:
+                    # Fall back to plain text parsing for compatibility
+                    response = self.llm.invoke(prompt)
+                    parsed_mistakes = self._parse_response(getattr(response, "content", ""))
+            else:
+                response = self.llm.invoke(prompt)
+                parsed_mistakes = self._parse_response(getattr(response, "content", ""))
+
             mistakes = []
-            for mistake in response.mistakes:
+            for mistake in parsed_mistakes:
+                if not isinstance(mistake, dict):
+                    continue
+
                 mistake_dict = {
-                    "message_index": mistake.message_index,
-                    "student_input": mistake.student_input,
-                    "corrected_answer": mistake.corrected_answer,
-                    "error_type": mistake.error_type,
-                    "error_category": mistake.error_category,
-                    "concepts": mistake.concepts,
-                    "explanation": mistake.explanation,
-                    "difficulty": mistake.difficulty,
-                    "suggested_practice": mistake.suggested_practice,
-                    "recurrence_risk": mistake.recurrence_risk,
+                    "message_index": mistake.get("message_index"),
+                    "student_input": mistake.get("student_input", ""),
+                    "corrected_answer": mistake.get("corrected_answer", ""),
+                    "error_type": mistake.get("error_type", "unknown"),
+                    "error_category": mistake.get("error_category", "unknown"),
+                    "concepts": mistake.get("concepts", []),
+                    "explanation": mistake.get("explanation", ""),
+                    "difficulty": mistake.get("difficulty", "unknown"),
+                    "suggested_practice": mistake.get("suggested_practice", ""),
+                    "recurrence_risk": mistake.get("recurrence_risk", "unknown"),
                     "timestamp": datetime.now().isoformat(),
                 }
                 mistake_dict["searchable_text"] = self._build_searchable_text(mistake_dict)
                 mistakes.append(mistake_dict)
-            
+
             return mistakes
         
         except Exception as e:
@@ -104,6 +115,28 @@ class ConversationAnalyzer:
             import traceback
             traceback.print_exc()
             return []
+
+    def _parse_response(self, response_text: str) -> List[Dict]:
+        """Parse model response text as JSON list of mistakes."""
+        if not isinstance(response_text, str) or not response_text.strip():
+            return []
+
+        candidates = [response_text.strip()]
+
+        fenced_blocks = re.findall(r"```(?:json)?\s*(.*?)\s*```", response_text, flags=re.IGNORECASE | re.DOTALL)
+        candidates.extend(block.strip() for block in fenced_blocks if block.strip())
+
+        for candidate in candidates:
+            try:
+                payload = json.loads(candidate)
+                if isinstance(payload, list):
+                    return payload
+                if isinstance(payload, dict) and isinstance(payload.get("mistakes"), list):
+                    return payload["mistakes"]
+            except (json.JSONDecodeError, TypeError):
+                continue
+
+        return []
     
     def _build_prompt(self, user_messages: List[Dict]) -> List:
         """Build prompt for analysis."""
