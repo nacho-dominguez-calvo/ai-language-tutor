@@ -3,7 +3,6 @@ Conversation Analyzer - Analyzes completed conversations to extract mistakes.
 Uses OpenAI Structured Outputs for 100% reliable JSON.
 """
 
-import json
 from datetime import datetime
 from typing import List, Dict, Optional
 from pydantic import BaseModel, Field
@@ -39,7 +38,6 @@ class ConversationAnalyzer:
     def __init__(self, llm: Optional[ChatOpenAI] = None):
         """Initialize with LLM client."""
         if llm is None:
-            from app.llm_client import llm as default_llm
             # Use gpt-4o-mini or gpt-4o for structured outputs
             self.llm = ChatOpenAI(
                 model="gpt-4o-mini",
